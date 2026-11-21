@@ -15,6 +15,7 @@ import { useChatStore } from "@/stores/chatStore";
 import { useUserStore } from "@/stores/userStore";
 import { logger } from "@/utils/logger";
 import { findActiveMessage } from "@/stores/chat/utils";
+import { useNotificationStore } from "@/stores/notificationStore";
 import { io } from "socket.io-client";
 
 // Singleton socket connection for the SPA
@@ -92,12 +93,11 @@ function initializeSpaSocket(chatStore) {
 	spaSocket.on("connect", createSpaConnectHandler(chatStore, spaSocket));
 
 	// A reconnect can land after missed notifications (outage cleared, new
-	// promo, etc.) — refetch on every connect. Dynamic import keeps the
-	// notification store out of this composable's static dependency graph.
+	// promo, etc.) — refetch on every connect. A static import costs nothing:
+	// the store is already eager everywhere this composable runs (App.vue and
+	// the widget panel both mount NotificationHost).
 	spaSocket.on("connect", () => {
-		import("@/stores/notificationStore").then(({ useNotificationStore }) =>
-			useNotificationStore().refresh()
-		);
+		useNotificationStore().refresh();
 	});
 
 	// Connection error
