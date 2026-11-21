@@ -30,6 +30,9 @@ export default defineConfig({
 		cssCodeSplit: false,
 		sourcemap: false,
 		target: "es2019",
+		// Mermaid's lazily-loaded core is a single indivisible ~670 kB module
+		// graph; warn only above it so real regressions still surface.
+		chunkSizeWarningLimit: 700,
 		rolldownOptions: {
 			input: { main: resolve(import.meta.dirname, "src/widget/main.js") },
 			// widget_loader.js calls the entry's boot(); Vite defaults to dropping entry exports.
@@ -39,6 +42,15 @@ export default defineConfig({
 				entryFileNames: "assets/[name].[hash].js",
 				chunkFileNames: "assets/[name].[hash].js",
 				assetFileNames: "assets/[name].[hash].[ext]",
+				// Split charting libraries out of their feature chunks; they
+				// stay behind the same lazy imports. Mermaid is deliberately
+				// not grouped — it code-splits its own diagram modules.
+				codeSplitting: {
+					groups: [
+						{ name: "zrender", test: /node_modules[\\/]zrender[\\/]/ },
+						{ name: "echarts", test: /node_modules[\\/](echarts|vue-echarts)[\\/]/ },
+					],
+				},
 			},
 		},
 	},

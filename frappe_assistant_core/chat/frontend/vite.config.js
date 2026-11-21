@@ -10,6 +10,20 @@ import { keepFirstScreen } from "./build/pwaPrecache.js";
 const OUT_DIR = resolve(import.meta.dirname, "../../public/chat/spa");
 const SPA_BASE = "/assets/frappe_assistant_core/chat/spa/";
 
+// vite-plugin-pwa 2.0.0 still passes the deprecated `inlineDynamicImports`
+// to the service-worker build; swap it for its Rolldown replacement
+// (`codeSplitting: false`, same single-file output) until the plugin catches up.
+const swCodeSplittingCompat = {
+	name: "sw-code-splitting-compat",
+	outputOptions(options) {
+		if (options.inlineDynamicImports) {
+			delete options.inlineDynamicImports;
+			options.codeSplitting = false;
+		}
+		return options;
+	},
+};
+
 export default defineConfig({
 	plugins: [
 		frappeui({
@@ -52,6 +66,7 @@ export default defineConfig({
 					},
 				],
 				maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+				buildPlugins: { vite: [swCodeSplittingCompat] },
 			},
 			devOptions: { enabled: false },
 		}),
@@ -82,5 +97,11 @@ export default defineConfig({
 		manifest: true,
 		// Ensure proper target for modern browsers
 		target: "es2015",
+		// The chunks above 500 kB are both single-library graphs behind lazy
+		// imports that cannot be split along load boundaries: mermaid's core
+		// (~670 kB; its diagram modules already code-split) and frappe-ui's
+		// dynamically imported barrel (~640 kB). Warn only above them so real
+		// regressions still surface.
+		chunkSizeWarningLimit: 700,
 	},
 });
